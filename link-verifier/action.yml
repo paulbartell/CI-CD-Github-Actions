@@ -64,7 +64,7 @@ runs:
         fi
         if [ -n "${{ inputs.user-agent }}" ]; then
           user_agent="${{ inputs.user-agent }}"
-          args+=" --user-agent ${user_agent}"
+          args+=" --user-agent \"${user_agent}\""
         fi
         echo "Running verify-links.py ${args}"
         if python3 "${GITHUB_ACTION_PATH}/verify-links.py" ${args}; then
