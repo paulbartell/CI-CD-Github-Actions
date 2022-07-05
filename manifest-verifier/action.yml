@@ -1,31 +1,44 @@
 name: 'verify-manifest'
 description: 'Verifies manifest.yml against missing submodule entires and stale version information'
 inputs:
-  path:
-    description: 'Path to repository folder containing manifest.yml to verify.'
+  manifest-path:
+    description: 'Path to repository folder to run manifest verification verification on.'
     required: false
     default: ./
   exclude-submodules:
-    description: 'List of comma-separated relative path to submodules that should not be present in manifest.yml. Eg libraries/thirdparty/tinycbor,libraries/thirdparty/mbedtls'
+    description: 'Space separated list of git submodule paths to ignore.'
     required: false
     default: ''
-  fail-on-incorrect-version: 
-    description: 'Boolean flag to indicate if verification should fail if any submodule version in manifest.yml file is incorrect or stale.'
+  ignore-spdx:
+    description: 'Space separated list of custom SPDX identifiers to be ignored.'
     required: false
-    default: 'false'
+    default: ''
 runs:
   using: "composite"
-  steps: 
-      - name: Install dependencies
-        run: pip install -r $GITHUB_ACTION_PATH/requirements.txt
-        shell: bash
-      - name: Run verifier script
-        working-directory: ${{ inputs.path }}
-        run: |
-          if [[ "${{ inputs.fail-on-incorrect-version }}" == "true" ]]; then
-            echo 'Value of flag is ${{ inputs.fail-on-incorrect-version }}' 
-            python3 $GITHUB_ACTION_PATH/verify_manifest.py --ignore-submodule-path=${{ inputs.exclude-submodules }} --fail-on-incorrect-version
-          else
-            python3 $GITHUB_ACTION_PATH/verify_manifest.py --ignore-submodule-path=${{ inputs.exclude-submodules }}
-          fi
-        shell: bash
+  steps:
+    - name: Install python dependencies
+      run: |
+        sudo apt-get install -y python3-setuptools python3-pip
+        python3 -m pip install -r $GITHUB_ACTION_PATH/requirements.txt
+      shell: bash
+    - name: Run manifest verifier script
+      run: |
+        if [ -n "${{ inputs.manifest_path }}" ]; then
+          manifest_path=${{ inputs.manifest_path }}
+          args+=${manifest_path:+ $manifest_path}
+        fi
+        if [ -n "${{ inputs.ignore_paths  }}" ]; then
+          dirs=${{ inputs.ignore_paths }}
+          args+=${dirs:+ --ignore-paths $dirs}
+        fi
+        if [ -n "${{ inputs.ignore_spdx  }}" ]; then
+          ignore_spdx=${{ inputs.ignore_spdx }}
+          args+=${ignore_spdx:+ --ignore-spdx $ignore_spdx}
+        fi
+        echo python3 $GITHUB_ACTION_PATH/verify_manifest.py $args
+        python3 $GITHUB_ACTION_PATH/verify_manifest.py $args
+        if [ $? -ne "0" ]
+        then
+          exit 1
+        fi
+      shell: bash
